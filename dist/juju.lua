@@ -6449,8 +6449,8 @@ do
 
             local files = listfiles("juju.lol reborn/configs/")
             for _, file in files do
-                if string["match"](file, "%.(.*)") == "cfg" then
-                    list[#list+1] = string["sub"](file, 21, #file-4)
+                local listed = string["match"](file, "([^/\\]+)%.cfg$") if listed then
+                    list[#list+1] = listed
                 end
             end
 
@@ -6462,8 +6462,8 @@ do
 
             local files = listfiles("juju.lol reborn/addons/")
             for _, file in files do
-                if string["match"](file, "%.(.*)") == "luau" then
-                    list[#list+1] = string["sub"](file, 20, #file-5)
+                local listed = string["match"](file, "([^/\\]+)%.luau$") if listed then
+                    list[#list+1] = listed
                 end
             end
 
@@ -6475,8 +6475,8 @@ do
 
             local files = listfiles("juju.lol reborn/custom/")
             for _, file in files do
-                if string["match"](file, "%.(.*)") == "skin" then
-                    list[#list+1] = string["sub"](file, 20, #file-5)
+                local listed = string["match"](file, "([^/\\]+)%.skin$") if listed then
+                    list[#list+1] = listed
                 end
             end
 
@@ -6488,8 +6488,8 @@ do
 
             local files = listfiles("juju.lol reborn/themes/")
             for _, file in files do
-                if string["match"](file, "%.(.*)") == "th" then
-                    list[#list+1] = string["sub"](file, 20, #file-3)
+                local listed = string["match"](file, "([^/\\]+)%.th$") if listed then
+                    list[#list+1] = listed
                 end
             end
 
