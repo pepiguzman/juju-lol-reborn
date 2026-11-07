@@ -1,4 +1,4 @@
-local source = "https://raw.githubusercontent.com/YOUR_USER/juju-lol-reborn/main/dist/"
+local source = "https://raw.githubusercontent.com/pepiguzman/juju-lol-reborn/main/dist/"
 
 getgenv().JUJU_TRACE = false
 getgenv().JUJU_DEBUG = false
