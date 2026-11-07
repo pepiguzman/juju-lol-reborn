@@ -5,7 +5,7 @@
 juju brought back for da hood copies. free, open source, made by #pepiguzman. original juju by xander.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/YOUR_USER/juju-lol-reborn/main/dist/loader.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/pepiguzman/juju-lol-reborn/main/dist/loader.lua"))()
 ```
 
 ## games
