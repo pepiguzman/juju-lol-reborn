@@ -43,5 +43,10 @@
         "places": [139144803593140],
         "games": [],
         "names": ["da downhill"]
+    },
+    "mvsd": {
+        "places": [12355337193],
+        "games": [4348829796],
+        "names": ["murderers vs sheriffs", "mvsd"]
     }
 }
