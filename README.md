@@ -19,6 +19,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/pepiguzman/juju-lol-r
 - dah aim trainer
 - the arab hood
 - nyan flame trainer
+- murderers vs sheriffs duels
 
 anything else loads the universal build, it tries to find the remote and bodyeffects on its own.
 
