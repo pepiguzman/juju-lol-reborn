@@ -21,6 +21,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/pepiguzman/juju-lol-r
 - nyan flame trainer
 - murderers vs sheriffs duels
 - hypershot
+
 anything else loads the universal build, it tries to find the remote and bodyeffects on its own.
 
 ## files
