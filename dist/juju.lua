@@ -1,3 +1,22 @@
+do
+    local env = getgenv()
+    local uis = game:GetService("UserInputService")
+    local on = env["JUJU_FORCE_MOBILE"]
+    if on == nil then
+        on = uis["TouchEnabled"] and not uis["KeyboardEnabled"]
+    end
+    env["JUJU_MOBILE"] = on and true or false
+    env["JUJU_SCALE"] = 1
+    if on then
+        local ok, vp = pcall(function()
+            return workspace["CurrentCamera"]["ViewportSize"]
+        end)
+        if ok and vp then
+            env["JUJU_SCALE"] = math.clamp(math.min(vp.X / 600, vp.Y / 480), 0.4, 1)
+        end
+    end
+end
+
 if not base64_decode then
     local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     base64_decode = (crypt and crypt.base64decode) or (crypt and crypt.base64 and crypt.base64.decode) or (base64 and (base64.decode or base64.decode64)) or function(data)
@@ -30,6 +49,25 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 do
     local ok = pcall(function() gui.Parent = (gethui and gethui()) or cloneref(game:GetService("CoreGui")) end)
     if not ok or not gui.Parent then gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end
+end
+
+local menu_gui = nil
+do
+    local scale = getgenv().JUJU_SCALE or 1
+    if scale ~= 1 then
+        menu_gui = Instance.new("ScreenGui")
+        menu_gui.Name = tostring(math.random(100000000, 999999999))
+        menu_gui.ResetOnSpawn = false
+        menu_gui.IgnoreGuiInset = true
+        menu_gui.DisplayOrder = 2147483001
+        menu_gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        local ui_scale = Instance.new("UIScale")
+        ui_scale.Scale = scale
+        ui_scale.Parent = menu_gui
+        local ok = pcall(function() menu_gui.Parent = (gethui and gethui()) or cloneref(game:GetService("CoreGui")) end)
+        if not ok or not menu_gui.Parent then menu_gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui") end
+    end
+    getgenv().JUJU_MENU_GUI = menu_gui
 end
 
 local FONTS = { [0] = Enum.Font.SourceSans, [1] = Enum.Font.GothamMedium, [2] = Enum.Font.Arial, [3] = Enum.Font.Code }
@@ -303,6 +341,7 @@ drawing._UNLOAD = function()
     flush:Disconnect()
     drawing.clear()
     gui:Destroy()
+    if menu_gui then menu_gui:Destroy() end
 end
 
 return drawing
@@ -339,7 +378,19 @@ end
 -- > ( global cheat variables )
 
 local user_input_service = cloneref(game:GetService("UserInputService"))
-    local get_mouse_location = user_input_service["GetMouseLocation"]
+    getgenv()["JUJU_UI"] = {
+    ["on"] = getgenv()["JUJU_MOBILE"] == true,
+    ["scale"] = getgenv()["JUJU_SCALE"] or 1,
+    ["move_event"] = Instance.new("BindableEvent")
+}
+getgenv()["JUJU_UI"]["view"] = function()
+    return workspace["CurrentCamera"]["ViewportSize"] / getgenv()["JUJU_UI"]["scale"]
+end
+local get_mouse_location = function(service)
+    local ui = getgenv()["JUJU_UI"]
+    local pos = ui["on"] and ui["pos"] or user_input_service["GetMouseLocation"](service)
+    return pos / ui["scale"]
+end
 local players_service = cloneref(game:GetService("Players"))
     local local_player = players_service["LocalPlayer"]
         local mouse = local_player:GetMouse()
@@ -381,7 +432,7 @@ local connections = {}
 local addon_data = {}
 local heartbeat = {}
 local flags = {
-    ["keybinds_position"] = {15, camera["ViewportSize"]["Y"]/2 - 10},
+    ["keybinds_position"] = {15, getgenv()["JUJU_UI"]["view"]()["Y"]/2 - 10},
     ["loaded_addons"] = {},
     ["favorites"] = {}
 }
@@ -726,7 +777,7 @@ do
     local button_image_data = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAMAAAC67D+PAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABh0RVh0U29mdHdhcmUAUGFpbnQuTkVUIDUuMS4y+7wDtgAAALZlWElmSUkqAAgAAAAFABoBBQABAAAASgAAABsBBQABAAAAUgAAACgBAwABAAAAAgAAADEBAgAQAAAAWgAAAGmHBAABAAAAagAAAAAAAAAMdwEA6AMAAAx3AQDoAwAAUGFpbnQuTkVUIDUuMS4yAAMAAJAHAAQAAAAwMjMwAaADAAEAAAABAAAABaAEAAEAAACUAAAAAAAAAAIAAQACAAQAAABSOTgAAgAHAAQAAAAwMTAwAAAAAO7qLRjGzAACAAAAK0lEQVQYVz3KQRIAAAQCwPr/p5WiQ9YAfkDcZiph7HnUucyD3V/RWqbaCjkOewBGmBH+OgAAAABJRU5ErkJggg==")
     local arrow_image_data = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAAYdEVYdFNvZnR3YXJlAFBhaW50Lk5FVCA1LjEuMvu8A7YAAAC2ZVhJZklJKgAIAAAABQAaAQUAAQAAAEoAAAAbAQUAAQAAAFIAAAAoAQMAAQAAAAIAAAAxAQIAEAAAAFoAAABphwQAAQAAAGoAAAAAAAAA8nYBAOgDAADydgEA6AMAAFBhaW50Lk5FVCA1LjEuMgADAACQBwAEAAAAMDIzMAGgAwABAAAAAQAAAAWgBAABAAAAlAAAAAAAAAACAAEAAgAEAAAAUjk4AAIABwAEAAAAMDEwMAAAAACOO8FX0xe8TgAAABdJREFUKFNj/A8EDHgAE5QmHwwBKxgYAJzaC/5K6BlzAAAAAElFTkSuQmCC")
     local cog_image_data = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAMAAAC67D+PAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURf///wAAAFXC034AAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAQKAAAECgBJz8A6wAAABh0RVh0U29mdHdhcmUAUGFpbnQuTkVUIDUuMS4y+7wDtgAAALZlWElmSUkqAAgAAAAFABoBBQABAAAASgAAABsBBQABAAAAUgAAACgBAwABAAAAAgAAADEBAgAQAAAAWgAAAGmHBAABAAAAagAAAAAAAAB3mgEA6AMAAHeaAQDoAwAAUGFpbnQuTkVUIDUuMS4yAAMAAJAHAAQAAAAwMjMwAaADAAEAAAABAAAABaAEAAEAAACUAAAAAAAAAAIAAQACAAQAAABSOTgAAgAHAAQAAAAwMTAwAAAAAEyPNqYn0aVIAAAALElEQVQYV2NgBAIGCAmioQhIQACQCZaGYBAJoZGYSApgUhATYAiikJGRkREACr4AMZ+SUSoAAAAASUVORK5CYII=")
-    local menu_position = udim2_new(0, camera["ViewportSize"]["X"]/2 - 575/2, 0, camera["ViewportSize"]["Y"]/2 - 450*0.5)
+    local menu_position = udim2_new(0, getgenv()["JUJU_UI"]["view"]()["X"]/2 - 575/2, 0, getgenv()["JUJU_UI"]["view"]()["Y"]/2 - 450*0.5)
 
     local half_transparency = {Transparency = 0.5}
     local stop_panel_search = nil
@@ -762,6 +813,10 @@ do
 
     drawing_proxy.new = identifyexecutor() == "AWP" and LPH_NO_VIRTUALIZE(function(class, properties)
         local object = create1(class)
+        local menu_target = getgenv()["JUJU_MENU_GUI"]
+        if menu_target and not getgenv()["JUJU_REAL_API"] and object["_inst"] then
+            object["_inst"]["Parent"] = menu_target
+        end
 
         local proxy = setmetatable({
             ["position"] = udim2_new(0, 0, 0, 0),
@@ -794,6 +849,10 @@ do
         return proxy
     end) or LPH_NO_VIRTUALIZE(function(class, properties)
         local object = create1(class)
+        local menu_target = getgenv()["JUJU_MENU_GUI"]
+        if menu_target and not getgenv()["JUJU_REAL_API"] and object["_inst"] then
+            object["_inst"]["Parent"] = menu_target
+        end
 
         local proxy = setmetatable({
             ["position"] = udim2_new(0, 0, 0, 0),
@@ -1202,7 +1261,7 @@ do
     -- > ( keybinds list )
 
     local list_frame = drawing_proxy["new"]("Image", {
-        ["Position"] = udim2_new(0, 15, 0, camera["ViewportSize"]["Y"]/2 - 10),
+        ["Position"] = udim2_new(0, 15, 0, getgenv()["JUJU_UI"]["view"]()["Y"]/2 - 10),
         ["Size"] = udim2_new(0, 74, 0, 20),
         ["Color"] = menu["colors"]["border"],
         ["Transparency"] = 0,
@@ -1877,7 +1936,7 @@ do
 
         local position = border["real_position"]
         local x_position = position["X"] + 30
-        local screen_size = camera["ViewportSize"]
+        local screen_size = getgenv()["JUJU_UI"]["view"]()
         local x_size = screen_size["X"]
         local y_size = screen_size["Y"]
 
@@ -3192,7 +3251,7 @@ do
 
         set_colorpicker_color(Color3.fromHSV(actives["colorpicker_hue"], actives["colorpicker_saturation"], actives["colorpicker_value"]), true)
 
-        moving = create_connection(mouse["Move"], function()
+        moving = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), function()
             local position = get_mouse_location(user_input_service)
 
             actives["colorpicker_saturation"] = clamp((position["X"] - frame_position_x) / 163, 0, 1)
@@ -3209,7 +3268,7 @@ do
 
         set_colorpicker_color(Color3.fromHSV(actives["colorpicker_hue"], actives["colorpicker_saturation"], actives["colorpicker_value"]), true)
 
-        moving = create_connection(mouse["Move"], function()
+        moving = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), function()
             actives["colorpicker_hue"] = clamp((get_mouse_location(user_input_service)["X"] - frame_position_x) / 158, 0, 1)
             set_colorpicker_color(Color3.fromHSV(actives["colorpicker_hue"], actives["colorpicker_saturation"], actives["colorpicker_value"]), true)
         end)
@@ -3220,7 +3279,7 @@ do
 
         set_colorpicker_transparency(clamp(1 - (position["X"] - frame_position_x) / 163, 0, 1), true)
 
-        moving = create_connection(mouse["Move"], function()
+        moving = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), function()
             set_colorpicker_transparency(clamp(1 - (get_mouse_location(user_input_service)["X"] - frame_position_x) / 163, 0, 1), true)
         end)
     end)
@@ -3228,7 +3287,7 @@ do
     local open_colorpicker = function(element)
         local position = element["drawings"]["colorpicker_border"]["real_position"]
         local x_position = position["X"] + 30
-        local screen_size = camera["ViewportSize"]
+        local screen_size = getgenv()["JUJU_UI"]["view"]()
         local x_size = screen_size["X"]
         local y_size = screen_size["Y"]
 
@@ -3346,6 +3405,26 @@ do
     end
 
     local handle_click = LPH_JIT_MAX(function(_, state, input)
+        local ui = getgenv()["JUJU_UI"]
+        if ui["on"] and input["UserInputType"] == Enum["UserInputType"]["Touch"] then
+            if state == Enum["UserInputState"]["Begin"] then
+                ui["set_touch"](input)
+                if ui["over_button"](ui["pos"]) then
+                    ui["skip"] = true
+                    return
+                end
+                ui["skip"] = false
+                ui["touch_begin"](input)
+            elseif state == Enum["UserInputState"]["Change"] then
+                return
+            else
+                ui["touch_end"]()
+                if ui["skip"] then
+                    ui["skip"] = false
+                    return
+                end
+            end
+        end
         if moving then
             moving:Disconnect()
             moving = nil
@@ -3464,10 +3543,16 @@ do
                     end
                 end
 
+                local ui = getgenv()["JUJU_UI"]
+                if ui["on"] and mouse_position_y - menu_position["Y"]["Offset"] > 40 then
+                    ui["scrolling"] = true
+                    return
+                end
+
                 local fake_menu_position = frame["real_position"]
                 local abs = math["abs"]
 
-                moving = create_connection(mouse["Move"], function()
+                moving = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), function()
                     if not drag_frame["Visible"] then
                         drag_frame["Visible"] = true
                         tween(drag_frame, show_transparency, circular, out, 0.05)
@@ -3517,7 +3602,7 @@ do
                     if (mouse_position_x > hud_position["X"] and mouse_position_x < hud_position["X"] + hud_size["X"]) and (mouse_position_y > hud_position["Y"] and mouse_position_y < hud_position["Y"] + hud_size["Y"]) then
                         local fake_hud_position = hud_position
 
-                        moving = create_connection(mouse["Move"], function()
+                        moving = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), function()
                             local new_mouse_position = get_mouse_location(user_input_service)
                             local new_position_x = fake_hud_position["X"] - (mouse_position_x - new_mouse_position["X"])
                             local new_position_y = fake_hud_position["Y"] - (mouse_position_y - new_mouse_position["Y"])
@@ -3891,7 +3976,7 @@ do
                 end
             end)
         else
-            hovering = create_connection(mouse["Move"], handle_hover)
+            hovering = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), handle_hover)
         end
     end)
 
@@ -3937,6 +4022,156 @@ do
             end
         end
     end))
+
+    if getgenv()["JUJU_UI"]["on"] then
+        local ui = getgenv()["JUJU_UI"]
+        local gui_service = cloneref(game:GetService("GuiService"))
+        local touch_type = Enum["UserInputType"]["Touch"]
+        local hold_token = 0
+        local origin = vector2_new(0, 0)
+        local last_y = 0
+        local travelled = 0
+
+        ui["set_touch"] = function(input)
+            local inset = gui_service:GetGuiInset()
+            ui["pos"] = vector2_new(input["Position"]["X"] + inset["X"], input["Position"]["Y"] + inset["Y"])
+        end
+
+        ui["touch_begin"] = function(input)
+            ui["scrolling"] = false
+            origin = ui["pos"]
+            last_y = ui["pos"]["Y"]
+            travelled = 0
+            hold_token = hold_token + 1
+            local token = hold_token
+            delay(0.5, function()
+                if token == hold_token and menu_open and not moving and not ui["scrolling"] and (ui["pos"] - origin)["Magnitude"] < 10 then
+                    handle_right_click(nil, input)
+                end
+            end)
+        end
+
+        ui["touch_end"] = function()
+            hold_token = hold_token + 1
+            ui["scrolling"] = false
+        end
+
+        create_connection(user_input_service["InputChanged"], function(input)
+            if input["UserInputType"] ~= touch_type then
+                return
+            end
+
+            ui["set_touch"](input)
+            ui["move_event"]:Fire()
+
+            if ui["scrolling"] and menu_open and not moving then
+                local y = ui["pos"]["Y"]
+                travelled = travelled + (y - last_y)
+                last_y = y
+
+                while math["abs"](travelled) >= 18 do
+                    local up = travelled > 0
+                    travelled = travelled + (up and -18 or 18)
+                    handle_scroll(nil, Enum["UserInputState"]["Change"], {
+                        ["UserInputType"] = Enum["UserInputType"]["MouseWheel"],
+                        ["Position"] = Vector3["new"](0, 0, up and 1 or -1)
+                    })
+                end
+            end
+        end)
+
+        local old_gui = getgenv()["JUJU_MOBILE_GUI"]
+        if old_gui then
+            pcall(function()
+                old_gui:Destroy()
+            end)
+        end
+
+        local button_gui = Instance["new"]("ScreenGui")
+        button_gui["Name"] = tostring(math["random"](100000000, 999999999))
+        button_gui["ResetOnSpawn"] = false
+        button_gui["IgnoreGuiInset"] = true
+        button_gui["DisplayOrder"] = 2147483002
+
+        local button = Instance["new"]("TextButton")
+        button["Size"] = UDim2["fromOffset"](46, 46)
+        button["Position"] = UDim2["new"](0, 14, 0.5, -23)
+        button["BackgroundColor3"] = Color3["fromRGB"](18, 18, 18)
+        button["BackgroundTransparency"] = 0.2
+        button["BorderSizePixel"] = 0
+        button["AutoButtonColor"] = false
+        button["Text"] = "j"
+        button["TextSize"] = 24
+        button["Font"] = Enum["Font"]["GothamBold"]
+        button["TextColor3"] = Color3["fromRGB"](255, 255, 255)
+        button["Parent"] = button_gui
+
+        local corner = Instance["new"]("UICorner")
+        corner["CornerRadius"] = UDim["new"](1, 0)
+        corner["Parent"] = button
+
+        local outline = Instance["new"]("UIStroke")
+        outline["Color"] = Color3["fromRGB"](255, 255, 255)
+        outline["Transparency"] = 0.6
+        outline["Thickness"] = 1
+        outline["Parent"] = button
+
+        local ok = pcall(function()
+            button_gui["Parent"] = (gethui and gethui()) or cloneref(game:GetService("CoreGui"))
+        end)
+        if not ok or not button_gui["Parent"] then
+            button_gui["Parent"] = local_player:WaitForChild("PlayerGui")
+        end
+        getgenv()["JUJU_MOBILE_GUI"] = button_gui
+
+        ui["over_button"] = function(position)
+            local a = button["AbsolutePosition"]
+            local s = button["AbsoluteSize"]
+            return position["X"] >= a["X"] and position["X"] <= a["X"] + s["X"] and position["Y"] >= a["Y"] and position["Y"] <= a["Y"] + s["Y"]
+        end
+
+        local dragging = false
+        local moved = false
+        local grab = vector2_new(0, 0)
+
+        create_connection(button["InputBegan"], function(input)
+            if input["UserInputType"] == touch_type then
+                dragging = true
+                moved = false
+                local a = button["AbsolutePosition"]
+                grab = vector2_new(input["Position"]["X"] - a["X"], input["Position"]["Y"] - a["Y"])
+            end
+        end)
+
+        create_connection(user_input_service["InputChanged"], function(input)
+            if dragging and input["UserInputType"] == touch_type then
+                local inset = gui_service:GetGuiInset()
+                local x = input["Position"]["X"] + inset["X"] - grab["X"]
+                local y = input["Position"]["Y"] + inset["Y"] - grab["Y"]
+                local a = button["AbsolutePosition"]
+                if math["abs"](x - a["X"]) > 6 or math["abs"](y - a["Y"]) > 6 then
+                    moved = true
+                end
+                if moved then
+                    button["Position"] = UDim2["fromOffset"](x, y)
+                end
+            end
+        end)
+
+        create_connection(user_input_service["InputEnded"], function(input)
+            if input["UserInputType"] == touch_type then
+                dragging = false
+            end
+        end)
+
+        create_connection(button["Activated"], function()
+            if not moved then
+                pop_menu()
+            end
+            moved = false
+        end)
+
+    end
 
     -- > ( other )
 
@@ -5113,7 +5348,7 @@ do
 
                 create_click_connection(parent, slider_border, function(mouse_position)
                     local min, max, decimals = properties["min"], properties["max"], properties["decimals"]
-                    moving = create_connection(mouse["Move"], function()
+                    moving = create_connection((getgenv()["JUJU_UI"]["on"] and getgenv()["JUJU_UI"]["move_event"].Event or mouse["Move"]), function()
                         new_element:set_slider(round(min + (max - min) * (get_mouse_location(user_input_service)["X"] - slider_inside["real_position"]["X"])/slider_inside["real_size"]["X"], decimals))
                     end)
                     new_element:set_slider(round(min + (max - min) * (mouse_position["X"] - slider_inside["real_position"]["X"])/slider_inside["real_size"]["X"], decimals))
@@ -6093,7 +6328,7 @@ do
     do
         local update_notifications = LPH_NO_VIRTUALIZE(function()
             local notifications = menu["notifications"]
-            local size = camera["ViewportSize"]["Y"]*0.88
+            local size = getgenv()["JUJU_UI"]["view"]()["Y"]*0.88
             if #notifications > 6 then
                 notifications[1]:dismiss()
             end
@@ -6184,7 +6419,7 @@ do
                 end)
 
                 local notifications = menu["notifications"]
-                local viewport_size = camera["ViewportSize"]
+                local viewport_size = getgenv()["JUJU_UI"]["view"]()
 
                 inside["Position"] = udim2_new(0, (viewport_size["X"]*0.5) - (x_size*0.5), 0, viewport_size["Y"]*0.88 - (#notifications*29 - 5))
 
